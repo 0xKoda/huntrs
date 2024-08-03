@@ -9,7 +9,7 @@ use serde_json::Value;
 use std::collections::{HashMap, HashSet};
 use std::error::Error;
 use std::fs::File;
-use std::io::Write;
+use std::io::{Cursor, Write};
 use std::net::Ipv4Addr;
 use std::str::FromStr;
 use std::sync::Arc;
@@ -17,11 +17,14 @@ use std::time::Duration;
 use tokio::sync::Mutex;
 use trust_dns_resolver::config::*;
 use trust_dns_resolver::TokioAsyncResolver;
+use base64::{engine::general_purpose, Engine as _};
+use murmurhash3::murmurhash3_x86_32;
+
 
 const HTTP_TIMEOUT_SECONDS: u64 = 3;
 const RESPONSE_SIMILARITY_THRESHOLD: f32 = 0.9;
 const MNEMONIC_API_BASE_URL: &str = "https://api.mnemonic.no/pdns/v3/";
-const IPINFO_API_TOKEN: &str = "your_ipinfo_api_token_here";
+
 
 #[derive(Parser, Debug, Clone)]
 #[clap(author, version, about, long_about = None)]
@@ -45,6 +48,12 @@ struct Args {
 
     #[clap(long)]
     txt: bool,
+
+    #[clap(long)]
+    favi: bool,
+
+    #[clap(long, requires = "favi")]
+    key: Option<String>,
 }
 
 struct Cache {
@@ -62,6 +71,31 @@ impl Cache {
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     let args = Args::parse();
+
+    if args.favi {
+        if let Some(api_key) = &args.key {
+            match calculate_favicon_hash(&args.domain).await {
+                Ok(hash) => {
+                    println!("[*] Favicon hash for {}: {}", args.domain, hash);
+                    match search_shodan_for_favicon(hash, api_key).await {
+                        Ok(results) => {
+                            println!("[*] Found {} results with the same favicon hash:", results.len());
+                            for ip in results {
+                                println!("  - {}", ip);
+                            }
+                        }
+                        Err(e) => println!("Error searching Shodan: {}", e),
+                    }
+                }
+                Err(e) => println!("Error calculating favicon hash: {}", e),
+            }
+            return Ok(());  // Exit after favicon processing
+        } else {
+            println!("Error: Shodan API key is required when using the -favi flag");
+            return Ok(());  // Exit if no API key is provided
+        }
+    }
+
     let cache = Arc::new(Mutex::new(Cache::new()));
 
     if !is_using_cloudflare(&args.domain).await {
@@ -703,4 +737,79 @@ async fn retrieve_original_page(
     }
 
     Ok(response)
+}
+
+async fn calculate_favicon_hash(domain: &str) -> Result<i32, Box<dyn Error + Send + Sync>> {
+    let favicon_url = format!("https://{}/favicon.ico", domain);
+    let client = Client::new();
+    let response = client.get(&favicon_url).send().await?;
+    
+    if response.status().is_success() {
+
+        let favicon_content = response.bytes().await?;
+        
+ 
+        let favicon_base64 = general_purpose::STANDARD_NO_PAD.encode(favicon_content)
+            .chars()
+            .enumerate()
+            .flat_map(|(i, c)| {
+                if i > 0 && i % 76 == 0 {
+                    Some('\n')
+                } else {
+                    None
+                }.into_iter().chain(std::iter::once(c))
+            })
+            .collect::<String>() + "\n"; 
+        
+
+        let hash = murmurhash3_x86_32(favicon_base64.as_bytes(), 0);
+        
+
+        Ok(hash as i32)
+    } else {
+        Err(Box::new(std::io::Error::new(
+            std::io::ErrorKind::Other,
+            format!("Failed to retrieve favicon: HTTP {}", response.status()),
+        )))
+    }
+}
+
+async fn search_shodan_for_favicon(hash: i32, api_key: &str) -> Result<Vec<String>, Box<dyn Error + Send + Sync>> {
+    let client = Client::new();
+    let url = format!(
+        "https://api.shodan.io/shodan/host/search?key={}&query=http.favicon.hash:{}",
+        api_key, hash
+    );
+    
+    println!("[*] Sending request to Shodan API: {}", url);
+    
+    let response = client.get(&url).send().await?;
+    
+    println!("[*] Received response from Shodan API. Status: {}", response.status());
+    
+    let response_text = response.text().await?;
+    println!("[*] Response body: {}", response_text);
+    
+    let json: Value = serde_json::from_str(&response_text)?;
+    
+    println!("[*] Parsed JSON response");
+    
+    let mut results = Vec::new();
+    if let Some(matches) = json["matches"].as_array() {
+        println!("[*] Found {} matches", matches.len());
+        for (index, match_item) in matches.iter().enumerate() {
+            if let Some(ip) = match_item["ip_str"].as_str() {
+                println!("[*] Match {}: IP = {}", index + 1, ip);
+                results.push(ip.to_string());
+            } else {
+                println!("[*] Match {} does not have an 'ip_str' field", index + 1);
+            }
+        }
+    } else {
+        println!("[-] No 'matches' array found in the response");
+    }
+    
+    println!("[*] Total results found: {}", results.len());
+    
+    Ok(results)
 }

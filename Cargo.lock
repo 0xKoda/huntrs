@@ -607,10 +607,13 @@ checksum = "0fcc0b4a115bf80b728eb8ea024ad5bd707b615bfed49e0665b6e0f86fd082d9"
 name = "huntrs"
 version = "0.1.0"
 dependencies = [
+ "base64",
  "clap",
  "clap_derive",
  "futures",
  "ipnetwork",
+ "murmur3",
+ "murmurhash3",
  "rand",
  "reqwest",
  "scraper",
@@ -871,6 +874,18 @@ dependencies = [
  "wasi",
  "windows-sys 0.52.0",
 ]
+
+[[package]]
+name = "murmur3"
+version = "0.5.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9252111cf132ba0929b6f8e030cac2a24b507f3a4d6db6fb2896f27b354c714b"
+
+[[package]]
+name = "murmurhash3"
+version = "0.0.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a2983372caf4480544083767bf2d27defafe32af49ab4df3a0b7fc90793a3664"
 
 [[package]]
 name = "native-tls"
