@@ -1,6 +1,8 @@
+use base64::{engine::general_purpose, Engine as _};
 use clap::Parser;
 use futures::future::join_all;
 use ipnetwork::Ipv4Network;
+use murmurhash3::murmurhash3_x86_32;
 use rand::Rng;
 use reqwest::header::{HeaderMap, USER_AGENT};
 use reqwest::Client;
@@ -17,14 +19,10 @@ use std::time::Duration;
 use tokio::sync::Mutex;
 use trust_dns_resolver::config::*;
 use trust_dns_resolver::TokioAsyncResolver;
-use base64::{engine::general_purpose, Engine as _};
-use murmurhash3::murmurhash3_x86_32;
-
 
 const HTTP_TIMEOUT_SECONDS: u64 = 3;
 const RESPONSE_SIMILARITY_THRESHOLD: f32 = 0.9;
 const MNEMONIC_API_BASE_URL: &str = "https://api.mnemonic.no/pdns/v3/";
-
 
 #[derive(Parser, Debug, Clone)]
 #[clap(author, version, about, long_about = None)]
@@ -79,9 +77,9 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
                     println!("[*] Favicon hash for {}: {}", args.domain, hash);
                     match search_shodan_for_favicon(hash, api_key).await {
                         Ok(results) => {
-                            println!("[*] Found {} results with the same favicon hash:", results.len());
+                            println!("\x1b[33m[*] Found {} results with the same favicon hash:\x1b[0m", results.len());
                             for ip in results {
-                                println!("  - {}", ip);
+                                println!("  - \x1b[32m{}\x1b[0m", ip);
                             }
                         }
                         Err(e) => println!("Error searching Shodan: {}", e),
@@ -89,10 +87,10 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
                 }
                 Err(e) => println!("Error calculating favicon hash: {}", e),
             }
-            return Ok(());  // Exit after favicon processing
+            return Ok(()); 
         } else {
             println!("Error: Shodan API key is required when using the -favi flag");
-            return Ok(());  // Exit if no API key is provided
+            return Ok(()); 
         }
     }
 
@@ -748,7 +746,6 @@ async fn calculate_favicon_hash(domain: &str) -> Result<i32, Box<dyn Error + Sen
 
         let favicon_content = response.bytes().await?;
         
- 
         let favicon_base64 = general_purpose::STANDARD_NO_PAD.encode(favicon_content)
             .chars()
             .enumerate()
@@ -759,7 +756,7 @@ async fn calculate_favicon_hash(domain: &str) -> Result<i32, Box<dyn Error + Sen
                     None
                 }.into_iter().chain(std::iter::once(c))
             })
-            .collect::<String>() + "\n"; 
+            .collect::<String>() + "\n";  
         
 
         let hash = murmurhash3_x86_32(favicon_base64.as_bytes(), 0);
@@ -774,26 +771,32 @@ async fn calculate_favicon_hash(domain: &str) -> Result<i32, Box<dyn Error + Sen
     }
 }
 
-async fn search_shodan_for_favicon(hash: i32, api_key: &str) -> Result<Vec<String>, Box<dyn Error + Send + Sync>> {
+async fn search_shodan_for_favicon(
+    hash: i32,
+    api_key: &str,
+) -> Result<Vec<String>, Box<dyn Error + Send + Sync>> {
     let client = Client::new();
     let url = format!(
         "https://api.shodan.io/shodan/host/search?key={}&query=http.favicon.hash:{}",
         api_key, hash
     );
-    
+
     println!("[*] Sending request to Shodan API: {}", url);
-    
+
     let response = client.get(&url).send().await?;
-    
-    println!("[*] Received response from Shodan API. Status: {}", response.status());
-    
+
+    println!(
+        "[*] Received response from Shodan API. Status: {}",
+        response.status()
+    );
+
     let response_text = response.text().await?;
-    println!("[*] Response body: {}", response_text);
-    
+
+
     let json: Value = serde_json::from_str(&response_text)?;
-    
+
     println!("[*] Parsed JSON response");
-    
+
     let mut results = Vec::new();
     if let Some(matches) = json["matches"].as_array() {
         println!("[*] Found {} matches", matches.len());
@@ -808,8 +811,8 @@ async fn search_shodan_for_favicon(hash: i32, api_key: &str) -> Result<Vec<Strin
     } else {
         println!("[-] No 'matches' array found in the response");
     }
-    
+
     println!("[*] Total results found: {}", results.len());
-    
+
     Ok(results)
 }
