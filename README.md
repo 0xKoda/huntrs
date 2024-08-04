@@ -1,22 +1,20 @@
-# Huntrs: Exposing Origin Servers Behind Cloudflare
+# Huntrs: Web OSINT
 
-Huntrs is a powerful Rust-based CLI designed to uncover origin servers hidden behind Cloudflare and find hosts with matching favicon hashes. It leverages OSINT techniques, specifically SSL Certificates, Passive DNS History, and favicon hash searches to identify potential origin servers or other infrastructure.
+Huntrs leverages OSINT techniques to identify and uncover related infrastructure. Namely, it serves 2 primary purposes, to identify origin servers of domains behind Cloudflare, and identify similar hosts via fashicon hash searches.
 
 ## Features
 
-- Uncover origin servers of sites hidden behind Cloudflare
-- Find hosts with the same favicon hash
-- Analyze SSL certificates via crt.sh
-- Utilize Passive DNS History for deeper insights
-- Option to check for Cloudfront origin servers
-- Flexible output options (console, text file)
+[*] Uncover origin servers of sites hidden behind Cloudflare
+    - Analyze SSL certificates for subdomains
+    - Utilize Passive DNS History to identify potential servers
+    - Flexible output options (console, text file)
+
+[*] Uncover related hosts by favicon hash
+    - Calculate favicon murmur3 hash for a domain
+    - Search Shodan for related servers by hash
 
 ## Description
-This tool serves two primary functions:
-- Identifying origin servers via pdns and SSL certs
-- Identifying servers via favicon hash 
-
-Cloudflare provides an additional layer of security by masking the true IP addresses of origin servers. However, if not properly configured, origin servers may still be exposed. Huntrs helps find origin servers behind cloudflare.
+Cloudflare provides an additional layer of security by masking the true IP addresses of origin servers. However, if not properly configured, origin servers may still be exposed. Huntrs helps find these origin servers.
 
 Favicon hashes provide a timeless method for uncovering potentially related servers. 
 
