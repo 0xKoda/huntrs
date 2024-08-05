@@ -1,6 +1,6 @@
 # Huntrs: Web OSINT
 
-Huntrs leverages OSINT techniques to identify and uncover related infrastructure. Namely, it serves 2 primary purposes, to identify origin servers of domains behind Cloudflare, and identify similar hosts via fashicon hash searches.
+Huntrs leverages OSINT techniques to identify and uncover related infrastructure. Namely, it serves 3 primary purposes, to identify origin servers of domains behind Cloudflare, identify similar hosts via fashicon hash searches, and identify domains via reverse IP lookups.
 
 ## Features
 
@@ -13,6 +13,11 @@ Huntrs leverages OSINT techniques to identify and uncover related infrastructure
 - Calculate favicon murmur3 hash for a domain
 - Search Shodan for related servers by hash
 
+[*] Reverse IP lookup
+- Find all domains for an IP found using pdns
+
+### Outputs include
+- Domain list
 - Origin Server IP
 - ASN
 
@@ -53,6 +58,11 @@ huntrs example.com
 huntrs example.com --favi --key <shodan key>
 ```
 
+3. Find domains by IP:
+```bash
+huntrs 50.12.6.1 --rev
+```
+
 ### Options
 
 - `-o, --output <OUTPUT>`: Specify the output file
@@ -65,6 +75,7 @@ huntrs example.com --favi --key <shodan key>
 - `-V, --version`: Print version information
 - `--favi`: Perform favicon search
 - `--key <SHODAN_KEY>`: Shodan API key for favicon search
+- `-rev`: Perform reverse IP lookup on ViewDNS
 
 ## Interactive Mode
 

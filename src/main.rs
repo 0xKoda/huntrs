@@ -15,6 +15,7 @@ use crate::utils::{
     fetch_subdomains_from_crtsh, find_origins, get_cloudflare_ip_ranges, is_ip_in_ranges,
     is_using_cloudflare, print_finished_message, print_origins, process_subdomains,
     prompt_continue, prompt_subdomain_selection, save_origins_to_file, save_results_to_file,
+    perform_reverse_ip_lookup,
 };
 
 #[derive(Parser, Debug, Clone)]
@@ -45,6 +46,9 @@ pub struct Args {
 
     #[clap(long, requires = "favi")]
     key: Option<String>,
+
+    #[clap(short, long)]
+    rev: bool,
 }
 
 pub struct Cache {
@@ -88,6 +92,21 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
             println!("Error: Shodan API key is required when using the -favi flag");
             return Ok(());
         }
+    }
+
+    if args.rev {
+        let ip = &args.domain; 
+        match perform_reverse_ip_lookup(ip).await {
+            Ok(domains) => {
+                println!("\x1b[33m[*] Domains associated with IP {}:\x1b[0m", ip);
+                for domain in domains {
+                    let defanged = domain.replace(".", "[.]");
+                    println!("  - \x1b[32m{}\x1b[0m", defanged);
+                }
+            }
+            Err(e) => println!("Error performing reverse IP lookup: {}", e),
+        }
+        return Ok(());
     }
 
     let cache = Arc::new(Mutex::new(Cache::new()));

@@ -506,3 +506,51 @@ pub async fn print_finished_message(
 
     Ok(())
 }
+
+pub async fn perform_reverse_ip_lookup(ip: &str) -> Result<Vec<String>, Box<dyn Error + Send + Sync>> {
+    let url = format!("https://viewdns.info/reverseip/?host={}&t=1", ip);
+    let client = reqwest::Client::new();
+    let mut headers = HeaderMap::new();
+    headers.insert(USER_AGENT, "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/104.0.5112.102 Safari/537.36".parse()?);
+
+    println!("[*] Checking ViewDNS for reverse IP lookup...");
+    let response = client.get(&url).headers(headers).send().await?;
+
+    if !response.status().is_success() {
+        println!(
+            "[DEBUG] ViewDNS request failed with status: {}",
+            response.status()
+        );
+        return Ok(vec![]);
+    }
+
+    let html = response.text().await?;
+    let document = Html::parse_document(&html);
+    let table_selector = Selector::parse("table#null").unwrap();
+    let row_selector = Selector::parse("tr").unwrap();
+    let cell_selector = Selector::parse("td").unwrap();
+
+    let mut domains = Vec::new();
+
+    if let Some(table) = document.select(&table_selector).next() {
+        for row in table.select(&row_selector).skip(2) { 
+            let cells: Vec<_> = row.select(&cell_selector).collect();
+            if cells.len() >= 1 {
+                if let Some(domain) = cells[0].text().next() {
+                    let domain = domain.trim();
+                    if !domain.is_empty() {
+                        domains.push(domain.to_string());
+                    }
+                }
+            }
+        }
+    } else {
+        println!("[DEBUG] No table with id 'null' found in the HTML");
+    }
+
+    println!(
+        "[DEBUG] Total domains found: {}",
+        domains.len()
+    );
+    Ok(domains)
+}
