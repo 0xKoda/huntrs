@@ -5,13 +5,16 @@ Huntrs leverages OSINT techniques to identify and uncover related infrastructure
 ## Features
 
 [*] Uncover origin servers of sites hidden behind Cloudflare
-    - Analyze SSL certificates for subdomains
-    - Utilize Passive DNS History to identify potential servers
-    - Flexible output options (console, text file)
+- Analyze SSL certificates for subdomains
+- Utilize Passive DNS History to identify potential servers
+- Flexible output options (console, text file)
 
 [*] Uncover related hosts by favicon hash
-    - Calculate favicon murmur3 hash for a domain
-    - Search Shodan for related servers by hash
+- Calculate favicon murmur3 hash for a domain
+- Search Shodan for related servers by hash
+
+- Origin Server IP
+- ASN
 
 ## Description
 Cloudflare provides an additional layer of security by masking the true IP addresses of origin servers. However, if not properly configured, origin servers may still be exposed. Huntrs helps find these origin servers.
@@ -47,7 +50,7 @@ huntrs example.com
 
 2. Find origin servers by favicon hash:
 ```bash
-   huntrs example.com --favi --key <shodan key>
+huntrs example.com --favi --key <shodan key>
 ```
 
 ### Options

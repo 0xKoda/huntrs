@@ -1,18 +1,19 @@
+use base64::{engine::general_purpose, Engine as _};
+use murmurhash3::murmurhash3_x86_32;
 use reqwest::Client;
 use serde_json::Value;
 use std::error::Error;
-use base64::{engine::general_purpose, Engine as _};
-use murmurhash3::murmurhash3_x86_32;
 
 pub async fn calculate_favicon_hash(domain: &str) -> Result<i32, Box<dyn Error + Send + Sync>> {
     let favicon_url = format!("https://{}/favicon.ico", domain);
     let client = Client::new();
     let response = client.get(&favicon_url).send().await?;
-    
+
     if response.status().is_success() {
         let favicon_content = response.bytes().await?;
-        
-        let favicon_base64 = general_purpose::STANDARD_NO_PAD.encode(favicon_content)
+
+        let favicon_base64 = general_purpose::STANDARD_NO_PAD
+            .encode(favicon_content)
             .chars()
             .enumerate()
             .flat_map(|(i, c)| {
@@ -20,12 +21,15 @@ pub async fn calculate_favicon_hash(domain: &str) -> Result<i32, Box<dyn Error +
                     Some('\n')
                 } else {
                     None
-                }.into_iter().chain(std::iter::once(c))
+                }
+                .into_iter()
+                .chain(std::iter::once(c))
             })
-            .collect::<String>() + "\n";  
-        
+            .collect::<String>()
+            + "\n";
+
         let hash = murmurhash3_x86_32(favicon_base64.as_bytes(), 0);
-        
+
         Ok(hash as i32)
     } else {
         Err(Box::new(std::io::Error::new(

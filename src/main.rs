@@ -70,7 +70,10 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
                     println!("[*] Favicon hash for {}: {}", args.domain, hash);
                     match search_shodan_for_favicon(hash, api_key).await {
                         Ok(results) => {
-                            println!("\x1b[33m[*] Found {} results with the same favicon hash:\x1b[0m", results.len());
+                            println!(
+                                "\x1b[33m[*] Found {} results with the same favicon hash:\x1b[0m",
+                                results.len()
+                            );
                             for ip in results {
                                 println!("  - \x1b[32m{}\x1b[0m", ip);
                             }
